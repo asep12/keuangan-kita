@@ -14,8 +14,11 @@ satu Web App.
 4. **Keuangan › Status Bot Telegram** menampilkan alamat webhook (kunci disamarkan), pesan tertahan, galat terakhir
    dari Telegram, dan galat terakhir skrip (`TG_GALAT`, tanpa isi pesan). Galat tak terduga saat memproses pesan juga
    dibalas ke chat pengirim agar bot tidak diam.
+5. Menu Spreadsheet tidak tampil di Google Sheets versi HP. Karena itu Pengelola juga melihat **Kondisi bot** di
+   aplikasi (Atur › Telegram) dan bisa mengetuk **Perbaiki sambungan bot**: webhook dipasang ulang ke alamat
+   tersimpan (`TG_URL`, diuji dulu) dengan kunci yang sama, tanpa membuang pesan tertahan.
 
-Alamat Web App selalu diuji dulu dengan kiriman anonim (harus dijawab 302/200). `ScriptApp.getService().getUrl()`
+Alamat Web App selalu diuji dulu dengan kiriman anonim (harus dijawab 200; 302 dari versi lama juga diterima). `ScriptApp.getService().getUrl()`
 bisa mengembalikan deployment **@HEAD** (mode uji) yang menolak Telegram dengan 401 — bila begitu, menu meminta URL
 `/exec` dari *Terapkan › Kelola deployment*. URL yang lolos disimpan (`TG_URL`).
 
@@ -64,8 +67,9 @@ Syarat: Web App sudah di-deploy dengan akses **Anyone** (Telegram tidak bisa log
 - Token bot & kunci webhook hanya di ScriptProperties; tidak pernah dikirim ke klien atau ditulis ke log.
 - `doPost` menolak permintaan tanpa `?tg=<kunci>` yang cocok (Apps Script tidak bisa membaca header
   `X-Telegram-Bot-Api-Secret-Token`, jadi kunci ditaruh di URL webhook).
-- Setiap `update_id` diproses sekali (CacheService 6 jam): Apps Script selalu menjawab webhook dengan 302,
-  sehingga Telegram bisa mengirim ulang update yang sama.
+- Webhook dijawab dengan `HtmlService` (HTTP 200). `ContentService` selalu dialihkan 302; Telegram menganggap 302
+  gagal, mengulang update yang sama dengan jeda makin panjang, dan menahan pesan berikutnya (terlihat sebagai
+  "Pesan tertahan" yang terus naik). Setiap `update_id` tetap diproses sekali (CacheService 6 jam).
 - Isi pesan (nominal, keterangan) tersimpan juga di server Telegram — disebut di README.
 - Pengaman salinan file: ScriptProperties mencatat ID Spreadsheet pemiliknya. Bila skrip berjalan di file lain
   (hasil *Buat salinan*), token bot, sambungan chat, dan semua sesi dari file asal diabaikan & dibersihkan.

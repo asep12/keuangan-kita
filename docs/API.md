@@ -31,9 +31,10 @@ Selain Pengelola → `AKSES_DITOLAK`.
 | Fungsi | Masukan | Hasil |
 |---|---|---|
 | `buatKodeTelegram(token)` | — | `{ kode, bot, berlakuMenit }` (kode sekali pakai untuk `/hubung`); `BELUM_ADA_BOT` bila bot belum dipasang |
-| `statusTelegram(token)` | — | `{ bot|null, chat: [{ label, sejak }] }` milik pengguna ini |
+| `statusTelegram(token)` | — | `{ bot|null, chat: [{ label, sejak }], diagnosa? }` milik pengguna ini; `diagnosa` (hanya Pengelola): `{ tokenSah, webhookCocok, tertahan, galatTelegram, galatSkrip }` |
+| `perbaikiWebhookTelegram(token)` | — | Pengelola: pasang ulang webhook ke `TG_URL` (diuji dulu), kunci tetap → `diagnosa` |
 | `putuskanTelegram(token)` | — | `true` (semua chat pengguna ini diputus) |
-| `doPost(e)` | webhook Telegram | hanya diproses bila `e.parameter.tg` = kunci webhook; selalu menjawab `ok` |
+| `doPost(e)` | webhook Telegram | hanya diproses bila `e.parameter.tg` = kunci webhook; selalu menjawab `ok` via HtmlService (HTTP 200) |
 
 Menu Spreadsheet: `hubungkanBotTelegram` (pasang/ganti token, `PUTUS` untuk melepas). Detail: `docs/TELEGRAM.md`.
 

@@ -1258,10 +1258,37 @@
       isi(wadah, kepala,
         h('p', { class: 'redup kecil', style: 'padding:0 16px 8px', text: 'Catat lewat chat ke @' + st.bot + ', misalnya "25rb makan siang". Setiap catatan dikonfirmasi dulu.' }),
         chat.length ? chat : null,
+        st.diagnosa ? kondisiBot(st.diagnosa, wadah) : null,
         h('div', { style: 'display:flex;gap:8px;padding:8px 16px 16px;flex-wrap:wrap' },
           h('button', { type: 'button', class: 'tombol utama kecil', onclick: (e) => hubungkanTelegram(e.currentTarget, st.bot, chat.length) }, ikon('kirim'), chat.length ? 'Hubungkan chat lain' : 'Hubungkan'),
           chat.length ? h('button', { type: 'button', class: 'tombol bahaya kecil', text: 'Putuskan', onclick: () => putuskanTg(wadah) }) : null));
     } catch (g) { tanganiGalat(g); }
+  }
+
+  /** Khusus Pengelola: kondisi webhook menurut Telegram + tombol perbaiki (menu Spreadsheet tidak ada di HP). */
+  function kondisiBot(d, wadah) {
+    const alamatSalah = /401|403|404/.test(d.galatTelegram);
+    const sehat = d.tokenSah && d.webhookCocok && !alamatSalah && !d.galatSkrip;
+    const baris = (label, nilai) => h('p', { class: 'kecil', style: 'margin:2px 0' },
+      h('span', { class: 'redup', text: label + ': ' }), h('span', { text: nilai }));
+    return h('div', { style: 'margin:4px 16px 8px;padding:10px 12px;border:1px solid var(--garis);border-radius:12px' },
+      h('p', { style: 'margin:0 0 6px;font-weight:600', text: sehat ? 'Kondisi bot: normal' : 'Kondisi bot: perlu diperiksa' }),
+      !d.tokenSah ? baris('Token', 'ditolak Telegram — pasang ulang dari komputer') : null,
+      d.tokenSah ? baris('Sambungan webhook', d.webhookCocok ? 'cocok' : 'tidak cocok') : null,
+      d.tokenSah ? baris('Pesan tertahan di Telegram', String(d.tertahan)) : null,
+      d.galatTelegram ? baris('Galat dari Telegram', d.galatTelegram + (/302/.test(d.galatTelegram) ? ' — dari kode lama; ketuk Perbaiki' : '')) : null,
+      d.galatSkrip ? baris('Galat skrip terakhir', d.galatSkrip) : null,
+      d.tokenSah ? h('button', {
+        type: 'button', class: 'tombol kecil', style: 'margin-top:8px', onclick: async (e) => {
+          await denganTombol(e.currentTarget, 'Memperbaiki…', async () => {
+            try {
+              await api('perbaikiWebhookTelegram');
+              toast('Sambungan bot dipasang ulang');
+              muatTelegram(wadah);
+            } catch (g) { tanganiGalat(g); }
+          });
+        },
+      }, 'Perbaiki sambungan bot') : null);
   }
 
   async function hubungkanTelegram(tombol, bot, jumlahAwal) {

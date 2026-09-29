@@ -444,7 +444,8 @@ uji('Keluar menghapus sesi', () => {
     sama(perintah, ['bantuan', 'saldo', 'bulanini', 'batal', 'hubung', 'putus']);
     pastikan(terakhir('setMyDescription').data.description.length <= 512, 'deskripsi ≤ 512');
     pastikan(terakhir('setMyShortDescription').data.short_description.length <= 120, 'deskripsi singkat ≤ 120');
-    sama(apiB('statusTelegram', tokBudi).data, { bot: 'KeuanganUjiBot', chat: [] });
+    sama(apiB('statusTelegram', tokSari).data, { bot: 'KeuanganUjiBot', chat: [] }, 'anggota tanpa diagnosa');
+    sama(apiB('statusTelegram', tokBudi).data.diagnosa, { tokenSah: true, webhookCocok: true, tertahan: 0, galatTelegram: '', galatSkrip: '' });
   });
 
   uji('Bot: alamat @HEAD yang menolak (401) terdeteksi → minta URL /exec yang benar; perbaikan tanpa token menjaga kunci', () => {
@@ -577,6 +578,21 @@ uji('Keluar menghapus sesi', () => {
     pastikan(/Galat terakhir \(skrip\):.*sheet rusak/.test(B.menu('statusBotTelegram')), 'status');
     pesan(111, '25rb makan');
     pastikan(/Uang keluar/.test(teksTerakhir()), 'pulih');
+  });
+
+  uji('Bot: webhook dijawab 200 (HtmlService), bukan 302 yang membuat Telegram mengulang & menahan pesan', () => {
+    const r = pesan(111, '/saldo');
+    pastikan(r && typeof r.setWidth === 'function', 'jawaban HtmlService');
+  });
+
+  uji('Bot: tombol Perbaiki sambungan bot dari aplikasi — hanya Pengelola, kunci tetap, galat skrip dihapus', () => {
+    galat(apiB('perbaikiWebhookTelegram', tokSari), 'AKSES_DITOLAK');
+    const kunci = B.props.get('TG_KUNCI');
+    const d = ok(apiB('perbaikiWebhookTelegram', tokBudi));
+    pastikan(d.webhookCocok && d.galatSkrip === '', JSON.stringify(d));
+    const wh = terakhir('setWebhook').data;
+    pastikan(wh.url.endsWith('?tg=' + kunci) && wh.drop_pending_updates === false, JSON.stringify(wh));
+    sama(B.props.get('TG_KUNCI'), kunci);
   });
 
   uji('Bot: /saldo & /bulanini', () => {

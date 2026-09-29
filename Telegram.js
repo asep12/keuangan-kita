@@ -8,7 +8,7 @@
 
 const TG_DRAF_DETIK = 900; // draf menunggu konfirmasi 15 menit
 const TG_KODE_DETIK = 600; // kode /hubung berlaku 10 menit
-const TG_UPDATE_DETIK = 21600; // ingat update_id 6 jam (Telegram mengirim ulang karena Apps Script menjawab 302)
+const TG_UPDATE_DETIK = 21600; // ingat update_id 6 jam (Telegram bisa mengirim ulang update)
 
 // ======================================================================
 // Jalur masuk
@@ -18,9 +18,9 @@ const TG_UPDATE_DETIK = 21600; // ingat update_id 6 jam (Telegram mengirim ulang
 function doPost(e) {
   try {
     const kunci = props_().getProperty('TG_KUNCI');
-    if (!kunci || !e || !e.parameter || e.parameter.tg !== kunci || !e.postData) return ContentService.createTextOutput('');
+    if (!kunci || !e || !e.parameter || e.parameter.tg !== kunci || !e.postData) return jawabWebhook_();
     pastikanFileAsli_();
-    if (props_().getProperty('TG_KUNCI') !== kunci) return ContentService.createTextOutput(''); // salinan file: kunci lama dibuang
+    if (props_().getProperty('TG_KUNCI') !== kunci) return jawabWebhook_(); // salinan file: kunci lama dibuang
     const update = JSON.parse(e.postData.contents);
     try {
       prosesUpdate_(update);
@@ -30,7 +30,15 @@ function doPost(e) {
   } catch (err) {
     console.error('Bot Telegram: ' + (err && err.stack ? err.stack : err));
   }
-  return ContentService.createTextOutput('ok');
+  return jawabWebhook_();
+}
+
+/**
+ * Jawaban webhook. ContentService selalu dialihkan (302) ke script.googleusercontent.com; Telegram menganggap 302
+ * gagal dan terus mengulang pesan yang sama sehingga pesan berikutnya tertahan. HtmlService dijawab langsung 200.
+ */
+function jawabWebhook_() {
+  return HtmlService.createHtmlOutput('ok');
 }
 
 /**
@@ -134,7 +142,48 @@ function buatKodeTelegram(token) {
 /** API aplikasi: bot terpasang? chat mana saja milik saya yang terhubung. */
 function statusTelegram(token) {
   return jalankan_(token, function (sesi) {
-    return { bot: props_().getProperty('TG_BOT') || null, chat: chatMilik_(sesi.nama).map(function (c) { return { label: c.label, sejak: c.sejak }; }) };
+    const bot = props_().getProperty('TG_BOT') || null;
+    const hasil = { bot: bot, chat: chatMilik_(sesi.nama).map(function (c) { return { label: c.label, sejak: c.sejak }; }) };
+    // Pengelola sering hanya memegang HP (menu Spreadsheet tidak tampil di Sheets seluler): diagnosis ada di aplikasi.
+    if (bot && sesi.peran === PERAN.PENGELOLA) hasil.diagnosa = diagnosaBot_();
+    return hasil;
+  });
+}
+
+/** Kondisi webhook menurut Telegram + galat skrip terakhir. Tanpa kunci rahasia & tanpa isi pesan. */
+function diagnosaBot_() {
+  const p = props_();
+  const info = panggilTelegram_('getWebhookInfo', {});
+  if (!info.ok) return { tokenSah: false, webhookCocok: false, tertahan: 0, galatTelegram: '', galatSkrip: p.getProperty('TG_GALAT') || '' };
+  const r = info.result || {};
+  const kunci = p.getProperty('TG_KUNCI');
+  return {
+    tokenSah: true,
+    webhookCocok: !!(r.url && kunci && r.url.indexOf(kunci) !== -1),
+    tertahan: r.pending_update_count || 0,
+    galatTelegram: r.last_error_message ? String(r.last_error_message).slice(0, 150) + ' (' +
+      Utilities.formatDate(new Date(r.last_error_date * 1000), zonaWaktu_(), 'dd-MM-yyyy HH:mm') + ')' : '',
+    galatSkrip: p.getProperty('TG_GALAT') || '',
+  };
+}
+
+/** Pasang ulang webhook ke alamat Web App yang tersimpan & terverifikasi, dengan kunci yang sama (sambungan chat tetap). */
+function perbaikiWebhookTelegram(token) {
+  return jalankan_(token, function (sesi) {
+    pastikanPengelola_(sesi);
+    const p = props_();
+    if (!p.getProperty('TG_BOT')) throw galat_('BELUM_ADA_BOT', 'Bot Telegram belum dipasang.');
+    const url = p.getProperty('TG_URL');
+    if (!url || !urlBisaDiakses_(url)) {
+      throw galat_('VALIDASI', 'Alamat Web App tersimpan tidak bisa dijangkau. Dari komputer, jalankan menu ' +
+        'Keuangan › Hubungkan Bot Telegram (kosongkan token).');
+    }
+    const wh = panggilTelegram_('setWebhook', {
+      url: url + '?tg=' + p.getProperty('TG_KUNCI'), allowed_updates: ['message', 'callback_query'], drop_pending_updates: false,
+    });
+    if (!wh.ok) throw galat_('VALIDASI', 'Telegram menolak: ' + String(wh.description || '').slice(0, 120));
+    p.deleteProperty('TG_GALAT');
+    return diagnosaBot_();
   });
 }
 
@@ -637,8 +686,8 @@ function statusBotTelegram() {
     '',
     /401|403|404/.test(galat) ? 'Galat ini berarti alamat Web App salah atau tidak terbuka untuk "Siapa saja". ' +
       'Jalankan Hubungkan Bot Telegram, kosongkan token, lalu tempel URL /exec dari Terapkan › Kelola deployment.'
-      : /302/.test(galat) ? 'Galat "302" wajar untuk Apps Script: pesan tetap diproses. Bila bot tetap diam, periksa ' +
-        'Editor Apps Script › Eksekusi untuk melihat galat doPost.'
+      : /302/.test(galat) ? 'Galat "302" berasal dari kode versi lama (Telegram menahan pesan). Perbarui kode, terbitkan ' +
+        'versi baru deployment, lalu jalankan Hubungkan Bot Telegram (kosongkan token).'
         : '',
   ].join('\n'), ui.ButtonSet.OK);
 }
