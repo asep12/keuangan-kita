@@ -83,7 +83,9 @@
   ::selection { background: var(--utama-muda); color: var(--teks); }
   input, textarea { caret-color: var(--utama); }
   .blok { display: block; }
-  html, body { margin: 0; min-height: 100%; }
+  /* Halaman berada di dalam iframe Google yang tingginya dikunci saat dimuat. Gulir yang merambat ke luar
+     menyembunyikan bilah alamat browser HP dan menyisakan celah putih di bawah; rambatan itu dihentikan. */
+  html, body { margin: 0; min-height: 100%; overscroll-behavior-y: none; }
   body {
     font-family: var(--font-teks); font-size: 15px; line-height: 1.45;
     color: var(--teks); background: var(--latar);

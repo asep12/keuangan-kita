@@ -35,6 +35,7 @@ function onOpen() {
     .addItem('Impor dari Template Lama', 'imporTemplateLama')
     .addItem('Reset PIN', 'resetPin')
     .addItem('Hubungkan Bot Telegram', 'hubungkanBotTelegram')
+    .addItem('Status Bot Telegram', 'statusBotTelegram')
     .addSeparator()
     .addItem('Jalankan Tes Logika', 'jalankanTes')
     .addToUi();

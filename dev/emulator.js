@@ -139,13 +139,15 @@ function buatProyek(opsi) {
   const props = new Map();
   let terkunci = false;
   // Telegram tiruan: setiap panggilan api.telegram.org dicatat; jawaban meniru Bot API.
-  const telegram = { panggilan: [], tokenSah: /^\d{5,}:[A-Za-z0-9_-]{30,}$/, pesanId: 100 };
+  const telegram = { kodeWebApp: {}, webhookUrl: '', galatWebhook: '', panggilan: [], tokenSah: /^\d{5,}:[A-Za-z0-9_-]{30,}$/, pesanId: 100 };
   function jawabTelegram(url, opsi) {
     const m = /^https:\/\/api\.telegram\.org\/bot([^/]+)\/(\w+)$/.exec(url);
     if (!m) throw new Error('UrlFetchApp tiruan hanya mengenal api.telegram.org: ' + url);
     const data = JSON.parse(opsi.payload || '{}');
     telegram.panggilan.push({ metode: m[2], data: data, token: m[1] });
     if (!telegram.tokenSah.test(m[1]) || /TOLAK/.test(m[1])) return { ok: false, error_code: 401, description: 'Unauthorized' };
+    if (m[2] === 'setWebhook') telegram.webhookUrl = data.url;
+    if (m[2] === 'getWebhookInfo') return { ok: true, result: { url: telegram.webhookUrl, pending_update_count: telegram.galatWebhook ? 3 : 0, last_error_message: telegram.galatWebhook || undefined, last_error_date: telegram.galatWebhook ? 1790000000 : undefined } };
     if (m[2] === 'getMe') return { ok: true, result: { id: 1, is_bot: true, username: 'KeuanganUjiBot' } };
     if (m[2] === 'sendMessage' || m[2] === 'editMessageText') return { ok: true, result: { message_id: ++telegram.pesanId } };
     return { ok: true, result: true };
@@ -192,6 +194,13 @@ function buatProyek(opsi) {
     Session: { getScriptTimeZone: () => 'Asia/Jakarta' },
     UrlFetchApp: {
       fetch: (url, opsi) => {
+        // Alamat Web App sendiri (uji "bisa diakses tanpa login"): kode diatur tes lewat telegram.kodeWebApp, bawaan 302.
+        if (/^https:\/\/script\.google\.com\//.test(url)) {
+          const dasar = url.split('?')[0];
+          const kode = telegram.kodeWebApp[dasar] || 302;
+          telegram.panggilan.push({ metode: 'webapp', url: dasar });
+          return { getContentText: () => '', getResponseCode: () => kode };
+        }
         const isi = jawabTelegram(url, opsi || {});
         return { getContentText: () => JSON.stringify(isi), getResponseCode: () => (isi.ok ? 200 : isi.error_code || 400) };
       },
@@ -245,7 +254,11 @@ function buatUiUji(alert, jawabanPrompt) {
   return {
     ButtonSet, Button,
     alert: (a, b) => { alert.push(b === undefined ? String(a) : a + ': ' + b); return Button.OK; },
-    prompt: () => ({ getSelectedButton: () => Button.OK, getResponseText: () => String(jawabanPrompt || '') }),
+    // jawabanPrompt boleh array: satu jawaban per prompt, berurutan.
+    prompt: () => {
+      const j = Array.isArray(jawabanPrompt) ? jawabanPrompt.shift() : jawabanPrompt;
+      return { getSelectedButton: () => Button.OK, getResponseText: () => String(j === undefined ? '' : j) };
+    },
   };
 }
 

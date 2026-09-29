@@ -447,6 +447,37 @@ uji('Keluar menghapus sesi', () => {
     sama(apiB('statusTelegram', tokBudi).data, { bot: 'KeuanganUjiBot', chat: [] });
   });
 
+  uji('Bot: alamat @HEAD yang menolak (401) terdeteksi → minta URL /exec yang benar; perbaikan tanpa token menjaga kunci', () => {
+    const urlHead = 'https://script.google.com/macros/s/EMULATOR/exec';
+    const urlBenar = 'https://script.google.com/macros/s/TERBIT/exec';
+    B.telegram.kodeWebApp[urlHead] = 401;
+    B.props.delete('TG_URL');
+    const kunciLama = B.props.get('TG_KUNCI');
+    // Kosongkan token = perbaiki; URL otomatis (getUrl) tertolak 401 → prompt kedua diisi URL benar.
+    const teks = B.menu('hubungkanBotTelegram', ['', urlBenar]);
+    pastikan(/Webhook diperbaiki/.test(teks), teks);
+    sama(terakhir('setWebhook').data.url, urlBenar + '?tg=' + kunciLama, 'URL benar + kunci lama');
+    sama(B.props.get('TG_URL'), urlBenar);
+    // URL yang juga menolak ditolak dengan penjelasan, webhook tidak diubah.
+    B.telegram.kodeWebApp[urlBenar] = 401;
+    B.props.delete('TG_URL');
+    const n = B.telegram.panggilan.filter((x) => x.metode === 'setWebhook').length;
+    pastikan(/belum bisa menerima pesan tanpa login/.test(B.menu('hubungkanBotTelegram', ['', urlBenar])), 'tolak URL 401');
+    sama(B.telegram.panggilan.filter((x) => x.metode === 'setWebhook').length, n, 'tidak memasang webhook salah');
+    delete B.telegram.kodeWebApp[urlBenar];
+    B.props.set('TG_URL', urlBenar);
+  });
+
+  uji('Bot: menu Status Bot Telegram menampilkan galat webhook dan menyamarkan kunci', () => {
+    let teks = B.menu('statusBotTelegram');
+    pastikan(/Kunci webhook cocok: ya/.test(teks) && /Galat terakhir: tidak ada/.test(teks), teks);
+    pastikan(/tg=••••/.test(teks) && teks.indexOf(B.props.get('TG_KUNCI')) === -1, 'kunci tidak tampil');
+    B.telegram.galatWebhook = 'Wrong response from the webhook: 401 Unauthorized';
+    teks = B.menu('statusBotTelegram');
+    pastikan(/401/.test(teks) && /alamat Web App salah/.test(teks) && /tertahan di Telegram: 3/.test(teks), teks);
+    B.telegram.galatWebhook = '';
+  });
+
   uji('Bot: webhook tanpa kunci benar diabaikan; chat belum terhubung diberi petunjuk', () => {
     const n = B.telegram.panggilan.length;
     kirimUpdate({ update_id: 1, message: { chat: { id: 9, type: 'private' }, from: { id: 9 }, text: '25rb kopi' } }, true);

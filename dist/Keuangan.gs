@@ -42,6 +42,7 @@ function onOpen() {
     .addItem('Impor dari Template Lama', 'imporTemplateLama')
     .addItem('Reset PIN', 'resetPin')
     .addItem('Hubungkan Bot Telegram', 'hubungkanBotTelegram')
+    .addItem('Status Bot Telegram', 'statusBotTelegram')
     .addSeparator()
     .addItem('Jalankan Tes Logika', 'jalankanTes')
     .addToUi();
@@ -2014,7 +2015,8 @@ function hubungkanBotTelegram() {
   const p = props_();
   const botLama = p.getProperty('TG_BOT');
   const jawab = ui.prompt('Bot Telegram',
-    (botLama ? 'Terpasang: @' + botLama + '. Tempel token baru untuk mengganti, atau ketik PUTUS untuk melepas bot.\n\n' : '') +
+    (botLama ? 'Terpasang: @' + botLama + '.\n• Kosongkan lalu OK untuk memeriksa & memperbaiki webhook.\n' +
+      '• Tempel token baru untuk mengganti bot.\n• Ketik PUTUS untuk melepas bot.\n\n' : '') +
     'Token dari @BotFather (contoh 123456789:AAE...):', ui.ButtonSet.OK_CANCEL);
   if (jawab.getSelectedButton() !== ui.Button.OK) return;
   const teks = jawab.getResponseText().trim();
@@ -2024,31 +2026,27 @@ function hubungkanBotTelegram() {
     ui.alert('Bot dilepas. Semua chat yang terhubung ikut diputus.');
     return;
   }
-  if (!/^\d{5,}:[A-Za-z0-9_-]{30,}$/.test(teks)) {
+  const perbaiki = botLama && teks === '';
+  if (!perbaiki && !/^\d{5,}:[A-Za-z0-9_-]{30,}$/.test(teks)) {
     ui.alert('Format token tidak dikenali. Salin utuh dari pesan @BotFather.');
     return;
   }
-  let url = ScriptApp.getService().getUrl() || '';
-  if (!/\/exec$/.test(url)) {
-    const j2 = ui.prompt('URL Web App', 'Tempel URL Web App yang berakhiran /exec (Deploy › Manage deployments):', ui.ButtonSet.OK_CANCEL);
-    if (j2.getSelectedButton() !== ui.Button.OK) return;
-    url = j2.getResponseText().trim();
-  }
-  if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) {
-    ui.alert('URL Web App harus berawalan https://script.google.com/ dan berakhiran /exec.');
-    return;
-  }
+  const url = tentukanUrlWebApp_(ui);
+  if (!url) return;
+
   const tokenLama = p.getProperty('TG_TOKEN');
-  p.setProperty('TG_TOKEN', teks);
+  if (!perbaiki) p.setProperty('TG_TOKEN', teks);
   const me = panggilTelegram_('getMe', {});
   if (!me.ok) {
-    if (tokenLama) p.setProperty('TG_TOKEN', tokenLama); else p.deleteProperty('TG_TOKEN');
-    ui.alert('Token ditolak Telegram. Periksa lagi token dari @BotFather.');
+    if (!perbaiki) { if (tokenLama) p.setProperty('TG_TOKEN', tokenLama); else p.deleteProperty('TG_TOKEN'); }
+    ui.alert(perbaiki ? 'Token tersimpan sudah tidak berlaku (mungkin di-/revoke). Tempel token baru dari @BotFather.'
+      : 'Token ditolak Telegram. Periksa lagi token dari @BotFather.');
     return;
   }
-  const kunci = Utilities.getUuid().replace(/-/g, '');
+  // Perbaikan memakai kunci lama agar sambungan chat anggota tetap berlaku.
+  const kunci = (perbaiki && p.getProperty('TG_KUNCI')) || Utilities.getUuid().replace(/-/g, '');
   const wh = panggilTelegram_('setWebhook', {
-    url: url + '?tg=' + kunci, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true,
+    url: url + '?tg=' + kunci, allowed_updates: ['message', 'callback_query'], drop_pending_updates: !perbaiki,
   });
   if (!wh.ok) {
     ui.alert('Webhook gagal dipasang: ' + String(wh.description || '').slice(0, 150));
@@ -2056,10 +2054,85 @@ function hubungkanBotTelegram() {
   }
   p.setProperty('TG_KUNCI', kunci);
   p.setProperty('TG_BOT', me.result.username);
+  p.setProperty('TG_URL', url);
   pasangProfilBot_();
-  ui.alert('Bot Telegram terpasang', 'Bot: @' + me.result.username +
-    '\n\nDeskripsi & menu perintah bot sudah dipasang. Foto profil diatur lewat @BotFather › /setuserpic.' +
-    '\n\nSetiap anggota: aplikasi › Atur › Telegram › Hubungkan, lalu kirim /hubung KODE ke bot.', ui.ButtonSet.OK);
+  ui.alert(perbaiki ? 'Webhook diperbaiki' : 'Bot Telegram terpasang', 'Bot: @' + me.result.username +
+    '\nAlamat Web App terverifikasi bisa menerima pesan.' +
+    (perbaiki ? '\n\nCoba kirim /start ke bot. Bila masih diam, buka menu Keuangan › Status Bot Telegram.'
+      : '\n\nDeskripsi & menu perintah bot sudah dipasang. Foto profil diatur lewat @BotFather › /setuserpic.' +
+        '\n\nSetiap anggota: aplikasi › Atur › Telegram › Hubungkan, lalu ketuk "Buka di Telegram".'), ui.ButtonSet.OK);
+}
+
+/**
+ * Alamat Web App yang benar-benar menerima kiriman tanpa login. ScriptApp.getService().getUrl() bisa mengembalikan
+ * alamat deployment @HEAD (mode uji) yang menolak Telegram dengan 401, jadi setiap kandidat diuji dulu.
+ */
+function tentukanUrlWebApp_(ui) {
+  const kandidat = [props_().getProperty('TG_URL'), ScriptApp.getService().getUrl()]
+    .filter(function (u) { return u && /^https:\/\/script\.google\.com\/.+\/exec$/.test(u); });
+  for (let i = 0; i < kandidat.length; i++) {
+    if (urlBisaDiakses_(kandidat[i])) return kandidat[i];
+  }
+  const j = ui.prompt('URL Web App',
+    'Tempel URL aplikasi web yang sudah diterbitkan (berakhiran /exec):\n' +
+    'Editor Apps Script › Terapkan › Kelola deployment › pilih deployment Aplikasi web › salin URL.', ui.ButtonSet.OK_CANCEL);
+  if (j.getSelectedButton() !== ui.Button.OK) return null;
+  const url = j.getResponseText().trim();
+  if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) {
+    ui.alert('URL harus berawalan https://script.google.com/ dan berakhiran /exec.');
+    return null;
+  }
+  if (!urlBisaDiakses_(url)) {
+    ui.alert('URL itu belum bisa menerima pesan tanpa login.\n\nPastikan deployment berjenis Aplikasi web dengan ' +
+      '"Jalankan sebagai: Saya" dan "Yang memiliki akses: Siapa saja", lalu salin URL dari deployment tersebut.');
+    return null;
+  }
+  return url;
+}
+
+/** Uji kiriman anonim seperti Telegram: 302 (echo) atau 200 berarti doPost terjangkau; 401/403/404 berarti tidak. */
+function urlBisaDiakses_(url) {
+  try {
+    const kode = UrlFetchApp.fetch(url + '?tg=cek', {
+      method: 'post', contentType: 'application/json', payload: '{}', followRedirects: false, muteHttpExceptions: true,
+    }).getResponseCode();
+    return kode === 302 || kode === 200;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** Menu diagnosis: apa kata Telegram tentang webhook bot ini. Kunci rahasia di URL disamarkan. */
+function statusBotTelegram() {
+  const ui = pastikanDariSpreadsheet_();
+  pastikanFileAsli_();
+  if (!props_().getProperty('TG_TOKEN')) {
+    ui.alert('Bot Telegram belum dipasang. Pakai menu Keuangan › Hubungkan Bot Telegram.');
+    return;
+  }
+  const info = panggilTelegram_('getWebhookInfo', {});
+  if (!info.ok) {
+    ui.alert('Telegram menolak token tersimpan (mungkin sudah di-/revoke). Pasang ulang lewat Hubungkan Bot Telegram.');
+    return;
+  }
+  const r = info.result || {};
+  const tanggal = function (t) { return t ? Utilities.formatDate(new Date(t * 1000), zonaWaktu_(), 'dd-MM-yyyy HH:mm') : '—'; };
+  const galat = r.last_error_message ? r.last_error_message + ' (' + tanggal(r.last_error_date) + ')' : 'tidak ada';
+  const url = String(r.url || '').replace(/tg=[0-9a-f]+/, 'tg=••••');
+  const cocok = r.url && props_().getProperty('TG_KUNCI') && r.url.indexOf(props_().getProperty('TG_KUNCI')) !== -1;
+  ui.alert('Status Bot Telegram', [
+    'Bot: @' + (props_().getProperty('TG_BOT') || '?'),
+    'Webhook: ' + (url || '(belum terpasang)'),
+    'Kunci webhook cocok: ' + (cocok ? 'ya' : 'TIDAK — jalankan Hubungkan Bot Telegram (kosongkan token) untuk memperbaiki'),
+    'Pesan tertahan di Telegram: ' + (r.pending_update_count || 0),
+    'Galat terakhir: ' + galat,
+    '',
+    /401|403|404/.test(galat) ? 'Galat ini berarti alamat Web App salah atau tidak terbuka untuk "Siapa saja". ' +
+      'Jalankan Hubungkan Bot Telegram, kosongkan token, lalu tempel URL /exec dari Terapkan › Kelola deployment.'
+      : /302/.test(galat) ? 'Galat "302" wajar untuk Apps Script: pesan tetap diproses. Bila bot tetap diam, periksa ' +
+        'Editor Apps Script › Eksekusi untuk melihat galat doPost.'
+        : '',
+  ].join('\n'), ui.ButtonSet.OK);
 }
 
 function hapusBotTelegram_() {

@@ -9,7 +9,13 @@ satu Web App.
 2. Spreadsheet › **Keuangan › Hubungkan Bot Telegram** › tempel token.
    Server memeriksa token (`getMe`), menyimpannya di ScriptProperties, lalu mendaftarkan webhook ke URL Web App
    (`ScriptApp.getService().getUrl()`) dengan kunci rahasia acak di parameter `?tg=<kunci>`.
-3. Menu yang sama menampilkan status (nama bot, webhook, galat terakhir) dan tombol **Putuskan bot**.
+3. Menu yang sama: **kosongkan token lalu OK** untuk memeriksa & memperbaiki webhook (token & kunci lama dipakai),
+   atau ketik `PUTUS` untuk melepas bot.
+4. **Keuangan › Status Bot Telegram** menampilkan alamat webhook (kunci disamarkan), pesan tertahan, dan galat terakhir.
+
+Alamat Web App selalu diuji dulu dengan kiriman anonim (harus dijawab 302/200). `ScriptApp.getService().getUrl()`
+bisa mengembalikan deployment **@HEAD** (mode uji) yang menolak Telegram dengan 401 — bila begitu, menu meminta URL
+`/exec` dari *Terapkan › Kelola deployment*. URL yang lolos disimpan (`TG_URL`).
 
 Syarat: Web App sudah di-deploy dengan akses **Anyone** (Telegram tidak bisa login Google).
 

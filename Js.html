@@ -1259,24 +1259,49 @@
         h('p', { class: 'redup kecil', style: 'padding:0 16px 8px', text: 'Catat lewat chat ke @' + st.bot + ', misalnya "25rb makan siang". Setiap catatan dikonfirmasi dulu.' }),
         chat.length ? chat : null,
         h('div', { style: 'display:flex;gap:8px;padding:8px 16px 16px;flex-wrap:wrap' },
-          h('button', { type: 'button', class: 'tombol utama kecil', onclick: (e) => hubungkanTelegram(e.currentTarget, st.bot) }, ikon('kirim'), chat.length ? 'Hubungkan chat lain' : 'Hubungkan'),
+          h('button', { type: 'button', class: 'tombol utama kecil', onclick: (e) => hubungkanTelegram(e.currentTarget, st.bot, chat.length) }, ikon('kirim'), chat.length ? 'Hubungkan chat lain' : 'Hubungkan'),
           chat.length ? h('button', { type: 'button', class: 'tombol bahaya kecil', text: 'Putuskan', onclick: () => putuskanTg(wadah) }) : null));
     } catch (g) { tanganiGalat(g); }
   }
 
-  async function hubungkanTelegram(tombol, bot) {
+  async function hubungkanTelegram(tombol, bot, jumlahAwal) {
     await denganTombol(tombol, 'Membuat kode…', async () => {
       try {
         const r = await api('buatKodeTelegram');
         const perintah = '/hubung ' + r.kode;
         // Tautan mulai Telegram: membuka bot dengan kode terselip; cukup tekan Mulai, chat langsung terhubung.
         const tautan = 'https://t.me/' + encodeURIComponent(bot) + '?start=' + r.kode;
+        const status = h('p', { class: 'kecil', role: 'status', style: 'margin-top:10px' });
+        // Saat kembali dari Telegram, periksa sendiri apakah chat sudah terhubung.
+        let sedangCek = false;
+        const periksa = async () => {
+          if (document.visibilityState !== 'visible' || sedangCek) return;
+          if (!status.isConnected || $('#modal').hidden) { document.removeEventListener('visibilitychange', periksa); window.removeEventListener('focus', periksa); return; }
+          sedangCek = true;
+          status.textContent = 'Memeriksa sambungan…';
+          try {
+            const st = await api('statusTelegram');
+            if (st.chat.length > (jumlahAwal || 0)) {
+              document.removeEventListener('visibilitychange', periksa);
+              window.removeEventListener('focus', periksa);
+              tutupModal();
+              toast('Telegram terhubung');
+              renderAtur();
+              return;
+            }
+            status.textContent = 'Belum terhubung. Pastikan Anda menekan Mulai di Telegram dan bot membalas "Terhubung". ' +
+              'Bila bot diam saja, minta pemilik file menjalankan Keuangan › Status Bot Telegram.';
+          } catch (e) { status.textContent = ''; } finally { sedangCek = false; }
+        };
+        document.addEventListener('visibilitychange', periksa);
+        window.addEventListener('focus', periksa);
         bukaModal('Hubungkan Telegram', [
           h('p', { text: 'Ketuk tombol di bawah, lalu tekan Mulai (Start) di Telegram. Kode berlaku ' + r.berlakuMenit + ' menit.' }),
           h('a', { class: 'tombol utama lebar', href: tautan, target: '_blank', rel: 'noopener', style: 'margin:14px 0;text-decoration:none', 'data-fokus-awal': '' },
             ikon('kirim'), 'Buka di Telegram'),
           h('p', { class: 'redup kecil', text: 'Tidak terbuka? Buka @' + bot + ' di Telegram dan kirim pesan ini:' }),
           h('p', { class: 'angka', style: 'font-size:24px;font-weight:800;text-align:center;margin:10px 0;letter-spacing:.04em', text: perintah }),
+          status,
         ], [
           h('button', {
             type: 'button', class: 'tombol', onclick: async () => {
