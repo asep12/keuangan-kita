@@ -144,12 +144,14 @@ function buatProyek(opsi) {
     const m = /^https:\/\/api\.telegram\.org\/bot([^/]+)\/(\w+)$/.exec(url);
     if (!m) throw new Error('UrlFetchApp tiruan hanya mengenal api.telegram.org: ' + url);
     const data = JSON.parse(opsi.payload || '{}');
-    telegram.panggilan.push({ metode: m[2], data: data, token: m[1] });
+    const catatan = { metode: m[2], data: data, token: m[1] };
+    telegram.panggilan.push(catatan);
     if (!telegram.tokenSah.test(m[1]) || /TOLAK/.test(m[1])) return { ok: false, error_code: 401, description: 'Unauthorized' };
     if (m[2] === 'setWebhook') telegram.webhookUrl = data.url;
     if (m[2] === 'getWebhookInfo') return { ok: true, result: { url: telegram.webhookUrl, pending_update_count: telegram.galatWebhook ? 3 : 0, last_error_message: telegram.galatWebhook || undefined, last_error_date: telegram.galatWebhook ? 1790000000 : undefined } };
     if (m[2] === 'getMe') return { ok: true, result: { id: 1, is_bot: true, username: 'KeuanganUjiBot' } };
-    if (m[2] === 'sendMessage' || m[2] === 'editMessageText') return { ok: true, result: { message_id: ++telegram.pesanId } };
+    if (m[2] === 'sendMessage') { catatan.pesanId = ++telegram.pesanId; return { ok: true, result: { message_id: catatan.pesanId } }; }
+    if (m[2] === 'editMessageText') return { ok: true, result: { message_id: data.message_id } };
     return { ok: true, result: true };
   }
   const ctx = {

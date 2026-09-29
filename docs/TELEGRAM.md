@@ -48,7 +48,9 @@ Syarat: Web App sudah di-deploy dengan akses **Anyone** (Telegram tidak bisa log
   akun aktif pertama miliknya.
 - Tanggal: hari ini (zona Asia/Jakarta). Transfer antar akun tetap lewat aplikasi (Fase 2a).
 - **Tidak ada yang tersimpan tanpa konfirmasi.** Bot membalas draf dengan tombol:
-  `✔ Simpan` · `Ganti kategori` · `Ganti akun` · `✖ Batal`. Draf berlaku 15 menit (CacheService).
+  `✔ Simpan` · `Ganti kategori` · `Ganti akun` · `✖ Batal`. Draf berlaku 1 jam (CacheService), disimpan **per pesan
+  bot** (`tgd:<chat>:<message_id>`) sehingga beberapa draf bisa menunggu bersamaan. Simpan mengambil & menghapus draf di
+  dalam kunci (ketukan ganda tidak mencatat dua kali) dan langsung menampilkan "Menyimpan…".
 - Setelah tersimpan, bot menyebut sisa anggaran kategori itu bila ada. Transaksi tercatat
   `Dicatat Oleh` = anggota yang terhubung, persis seperti dari aplikasi (aturan ubah/batal sama).
 

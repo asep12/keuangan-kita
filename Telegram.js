@@ -6,7 +6,7 @@
  * JANGAN menulis token bot, kunci webhook, atau isi pesan ke log.
  */
 
-const TG_DRAF_DETIK = 900; // draf menunggu konfirmasi 15 menit
+const TG_DRAF_DETIK = 3600; // draf menunggu konfirmasi 1 jam
 const TG_KODE_DETIK = 600; // kode /hubung berlaku 10 menit
 const TG_UPDATE_DETIK = 21600; // ingat update_id 6 jam (Telegram bisa mengirim ulang update)
 
@@ -271,21 +271,33 @@ function buatDraf_(chatId, anggota, teks) {
     n: anggota.nama, jenis: hasil.jenis, nominal: hasil.nominal, kategoriId: hasil.kategoriId, akunId: hasil.akunId,
     pemilik: hasil.pemilik, keterangan: hasil.keterangan, tanggal: hariIni_(),
   };
-  simpanDraf_(chatId, draf);
-  if (!draf.kategoriId) {
-    kirimPesan_(chatId, teksDraf_(draf) + '\n\nPilih kategorinya:', tombolKategori_(draf, false));
-    return;
-  }
-  kirimPesan_(chatId, teksDraf_(draf), tombolDraf_());
+  const kirim = draf.kategoriId
+    ? kirimPesan_(chatId, teksDraf_(draf), tombolDraf_())
+    : kirimPesan_(chatId, teksDraf_(draf) + '\n\nPilih kategorinya:', tombolKategori_(draf, false));
+  // Satu draf per pesan bot: beberapa draf bisa menunggu bersamaan tanpa saling menimpa.
+  if (kirim && kirim.ok) simpanDraf_(chatId, kirim.result.message_id, draf);
 }
 
-function simpanDraf_(chatId, draf) {
-  CacheService.getScriptCache().put('tgd:' + chatId, JSON.stringify(draf), TG_DRAF_DETIK);
+function kunciDraf_(chatId, pesanId) {
+  return 'tgd:' + chatId + ':' + pesanId;
 }
 
-function ambilDraf_(chatId) {
-  const m = CacheService.getScriptCache().get('tgd:' + chatId);
+function simpanDraf_(chatId, pesanId, draf) {
+  CacheService.getScriptCache().put(kunciDraf_(chatId, pesanId), JSON.stringify(draf), TG_DRAF_DETIK);
+}
+
+function ambilDraf_(chatId, pesanId) {
+  const m = CacheService.getScriptCache().get(kunciDraf_(chatId, pesanId));
   return m ? JSON.parse(m) : null;
+}
+
+/** Ambil sekaligus hapus di dalam kunci: ketukan Simpan ganda tidak mencatat dua kali. */
+function ambilDanHapusDraf_(chatId, pesanId) {
+  return denganKunci_(function () {
+    const draf = ambilDraf_(chatId, pesanId);
+    if (draf) CacheService.getScriptCache().remove(kunciDraf_(chatId, pesanId));
+    return draf;
+  });
 }
 
 function teksDraf_(d) {
@@ -333,20 +345,21 @@ function tombolAkun_() {
 function prosesTombol_(cb) {
   const chatId = cb.message && cb.message.chat ? String(cb.message.chat.id) : '';
   const pesanId = cb.message ? cb.message.message_id : null;
-  panggilTelegram_('answerCallbackQuery', { callback_query_id: cb.id });
+  const data = String(cb.data || '');
+  // Jawab ketukan secepatnya agar tombol tidak terasa macet.
+  panggilTelegram_('answerCallbackQuery', { callback_query_id: cb.id, text: data === 'ok' ? 'Menyimpan…' : '' });
   const anggota = chatId ? anggotaChat_(chatId) : null;
   if (!anggota) return;
-  const data = String(cb.data || '');
 
   if (data === 'btl:ya' || data === 'btl:tidak') { konfirmasiBatal_(chatId, pesanId, anggota, data === 'btl:ya'); return; }
 
-  const draf = ambilDraf_(chatId);
+  const draf = data === 'ok' ? ambilDanHapusDraf_(chatId, pesanId) : ambilDraf_(chatId, pesanId);
   if (!draf || draf.n !== anggota.nama) {
     ubahPesan_(chatId, pesanId, 'Draf ini sudah kedaluwarsa. Kirim ulang pesannya.');
     return;
   }
   if (data === 'x') {
-    CacheService.getScriptCache().remove('tgd:' + chatId);
+    CacheService.getScriptCache().remove(kunciDraf_(chatId, pesanId));
     ubahPesan_(chatId, pesanId, 'Dibatalkan, tidak ada yang dicatat.');
   } else if (data === 'kat' || data === 'katsemua') {
     ubahPesan_(chatId, pesanId, teksDraf_(draf) + '\n\nPilih kategori:', tombolKategori_(draf, data === 'katsemua'));
@@ -354,13 +367,14 @@ function prosesTombol_(cb) {
     ubahPesan_(chatId, pesanId, teksDraf_(draf) + '\n\nPilih akun:', tombolAkun_());
   } else if (data.indexOf('k:') === 0) {
     draf.kategoriId = data.slice(2);
-    simpanDraf_(chatId, draf);
+    simpanDraf_(chatId, pesanId, draf);
     ubahPesan_(chatId, pesanId, teksDraf_(draf), tombolDraf_());
   } else if (data.indexOf('a:') === 0) {
     draf.akunId = data.slice(2);
-    simpanDraf_(chatId, draf);
+    simpanDraf_(chatId, pesanId, draf);
     ubahPesan_(chatId, pesanId, teksDraf_(draf), tombolDraf_());
   } else if (data === 'ok') {
+    ubahPesan_(chatId, pesanId, teksDraf_(draf) + '\n\nMenyimpan…');
     simpanDrafBot_(chatId, pesanId, anggota, draf);
   }
 }
@@ -373,11 +387,11 @@ function simpanDrafBot_(chatId, pesanId, anggota, draf) {
       nominal: draf.nominal, keterangan: draf.keterangan,
     });
   } catch (e) {
+    simpanDraf_(chatId, pesanId, draf); // kembalikan agar bisa dicoba lagi
     if (!e.bisnis) throw e;
     ubahPesan_(chatId, pesanId, teksDraf_(draf) + '\n\nBelum tersimpan: ' + e.message, tombolDraf_());
     return;
   }
-  CacheService.getScriptCache().remove('tgd:' + chatId);
   props_().setProperty('TGA_' + anggota.nama, draf.akunId);
   props_().setProperty('TGT_' + chatId, hasil.transaksi.id);
   ubahPesan_(chatId, pesanId, 'Tersimpan ✔\n' + teksDraf_(draf) + teksSisaAnggaran_(draf));

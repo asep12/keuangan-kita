@@ -406,9 +406,11 @@ uji('Keluar menghapus sesi', () => {
     update_id: ++nextUpdate,
     message: { message_id: nextUpdate, chat: { id: chatId, type: 'private' }, from: { id: chatId, first_name: 'Uji', is_bot: false }, text: text },
   }, lain || {}));
-  const tekan = (chatId, data) => kirimUpdate({
+  // Default: ketuk tombol pada pesan draf terakhir yang dikirim bot ke chat itu.
+  const drafTerakhir = (chatId) => (B.telegram.panggilan.filter((x) => x.metode === 'sendMessage' && x.data.reply_markup && String(x.data.chat_id) === String(chatId)).slice(-1)[0] || {}).pesanId;
+  const tekan = (chatId, data, pesanId) => kirimUpdate({
     update_id: ++nextUpdate,
-    callback_query: { id: 'cb' + nextUpdate, data: data, message: { message_id: 555, chat: { id: chatId, type: 'private' } } },
+    callback_query: { id: 'cb' + nextUpdate, data: data, message: { message_id: pesanId || drafTerakhir(chatId) || 555, chat: { id: chatId, type: 'private' } } },
   });
   const terakhir = (metode) => B.telegram.panggilan.filter((x) => x.metode === metode).slice(-1)[0];
   const teksTerakhir = () => {
@@ -610,6 +612,24 @@ uji('Keluar menghapus sesi', () => {
     tekan(111, 'btl:ya');
     pastikan(/dibatalkan/.test(teksTerakhir()), teksTerakhir());
     sama(trxB()[0][12], 'Batal');
+  });
+
+  uji('Bot: beberapa draf menunggu bersamaan tidak saling menimpa; Simpan menyimpan draf pesannya sendiri', () => {
+    const n = trxB().length;
+    pesan(111, '15rb kopi');
+    const idKopi = drafTerakhir(111);
+    pesan(111, '20rb bakso');
+    const idBakso = drafTerakhir(111);
+    pastikan(idKopi !== idBakso, 'dua pesan draf');
+    tekan(111, 'ok', idKopi);
+    pastikan(/Tersimpan/.test(teksTerakhir()) && /15\.000/.test(teksTerakhir()), teksTerakhir());
+    pastikan(B.telegram.panggilan.some((x) => x.metode === 'editMessageText' && /Menyimpan…/.test(x.data.text)), 'umpan balik Menyimpan…');
+    pastikan(B.telegram.panggilan.some((x) => x.metode === 'answerCallbackQuery' && x.data.text === 'Menyimpan…'), 'jawab ketukan');
+    tekan(111, 'ok', idBakso);
+    pastikan(/Tersimpan/.test(teksTerakhir()) && /20\.000/.test(teksTerakhir()), teksTerakhir());
+    tekan(111, 'ok', idKopi);
+    pastikan(/kedaluwarsa/.test(teksTerakhir()), 'ketukan ganda tidak mencatat dua kali');
+    sama(trxB().length, n + 2);
   });
 
   uji('Bot: reset PIN Sari memutus chat Sari; /putus memutus chat sendiri', () => {
