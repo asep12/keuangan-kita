@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "keuangan-lokal",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dev/server.js"],
+      "port": 8788,
+      "autoPort": true
+    }
+  ]
+}

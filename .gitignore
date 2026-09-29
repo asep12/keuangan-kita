@@ -1,0 +1,8 @@
+# Berisi scriptId & ID Spreadsheet pribadi — jangan dipublikasikan.
+.clasp.json
+.clasprc.json
+node_modules/
+# Hasil dev/screenshot.js & pengaturan lokal Claude Code.
+screenshot/
+.claude/settings.local.json
+*.log

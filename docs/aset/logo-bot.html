@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; width: 640px; height: 640px; overflow: hidden; background: #1e40af; }
+  svg { display: block; }
+</style></head>
+<body>
+<!--
+  Logo profil bot "Keuangan Kita": gelembung chat (catat lewat chat) berwarna putih gading hangat
+  berisi dompet biru dengan koin hijau (uang masuk). Semua isi berada di lingkaran aman tengah
+  karena Telegram memotong foto profil jadi lingkaran.
+-->
+<svg width="640" height="640" viewBox="0 0 640 640" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="640" fill="#1e40af"/>
+  <!-- Gelembung chat -->
+  <path d="M170 170 h300 a60 60 0 0 1 60 60 v150 a60 60 0 0 1 -60 60 h-150 l-78 62 a8 8 0 0 1 -13 -6 v-56 h-59 a60 60 0 0 1 -60 -60 v-150 a60 60 0 0 1 60 -60 z"
+        fill="#f6f4ef"/>
+  <!-- Dompet (bentuk ikon aplikasi) -->
+  <g fill="none" stroke="#1e40af" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M430 262 v-22 a22 22 0 0 0 -22 -22 h-176 a22 22 0 0 0 -22 22 v156 a22 22 0 0 0 22 22 h176 a22 22 0 0 0 22 -22 v-22"/>
+    <path d="M452 290 h-66 a22 22 0 0 0 0 44 h66 z"/>
+  </g>
+  <!-- Koin: uang masuk -->
+  <circle cx="452" cy="206" r="40" fill="#047857" stroke="#f6f4ef" stroke-width="12"/>
+  <path d="M452 186 v40 M436 210 l16 16 16 -16" fill="none" stroke="#f6f4ef" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</body></html>

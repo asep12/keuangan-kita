@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title><?= namaAplikasi ?></title>
+  <meta name="theme-color" content="#1e40af">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <?!= include('Css'); ?>
+</head>
+<body>
+  <!-- ================= Masuk ================= -->
+  <main id="layar-masuk" class="layar-penuh" hidden>
+    <div class="kotak-masuk">
+      <div class="merek">
+        <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M21 12h-6a2 2 0 0 0 0 4h6v-4z"/></svg></div>
+        <h1><?= namaAplikasi ?></h1>
+        <p class="redup">Catatan keuangan pribadi &amp; keluarga</p>
+      </div>
+
+      <section id="masuk-pilih">
+        <h2 class="judul-kecil">Siapa yang masuk?</h2>
+        <div id="daftar-nama" class="daftar-nama"></div>
+      </section>
+
+      <section id="masuk-pin" hidden>
+        <button type="button" id="masuk-kembali" class="tombol teks kecil">‹ Ganti orang</button>
+        <h2 class="judul-kecil" id="masuk-sapa"></h2>
+        <form id="form-pin" autocomplete="off">
+          <label for="input-pin" class="sr-only">PIN 6 digit</label>
+          <input id="input-pin" class="input-pin-tersembunyi" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password">
+          <div class="titik-pin" id="titik-pin" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </form>
+        <p id="masuk-pesan" class="pesan-galat" role="alert"></p>
+        <div class="papan-angka" id="papan-angka"></div>
+        <button type="button" id="lupa-pin" class="tombol teks kecil">Lupa PIN?</button>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================= Ganti PIN ================= -->
+  <main id="layar-ganti-pin" class="layar-penuh" hidden>
+    <div class="kotak-masuk">
+      <h1>Ganti PIN</h1>
+      <p class="redup" id="ganti-pin-info">PIN baru 6 digit angka, jangan yang mudah ditebak seperti 123456.</p>
+      <form id="form-ganti-pin" class="form">
+        <label>PIN lama<input id="pin-lama" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" required></label>
+        <label>PIN baru<input id="pin-baru" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" required></label>
+        <label>Ulangi PIN baru<input id="pin-ulang" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" required></label>
+        <p id="ganti-pin-pesan" class="pesan-galat" role="alert"></p>
+        <button type="submit" class="tombol utama lebar">Simpan PIN</button>
+        <button type="button" id="ganti-pin-batal" class="tombol lebar" hidden>Batal</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- ================= Aplikasi ================= -->
+  <div id="aplikasi" hidden>
+    <header class="atas">
+      <div class="judul-atas">
+        <h1 id="judul-layar" tabindex="-1">Beranda</h1>
+        <p id="sub-judul" class="redup kecil"></p>
+      </div>
+      <button type="button" class="chip-pengguna" id="chip-pengguna"></button>
+    </header>
+
+    <main class="isi-aplikasi">
+      <section id="l-beranda" class="layar" hidden></section>
+      <section id="l-catat" class="layar" hidden></section>
+      <section id="l-riwayat" class="layar" hidden></section>
+      <section id="l-laporan" class="layar" hidden></section>
+      <section id="l-anggaran" class="layar" hidden></section>
+      <section id="l-atur" class="layar" hidden></section>
+    </main>
+
+    <nav class="nav-bawah" id="nav-bawah" aria-label="Menu utama"></nav>
+  </div>
+
+  <!-- ================= Umum ================= -->
+  <div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-judul">
+    <div class="modal-latar" data-tutup></div>
+    <div class="modal-kotak">
+      <div class="modal-kepala">
+        <h2 id="modal-judul"></h2>
+        <button type="button" class="tombol-ikon" data-tutup aria-label="Tutup">✕</button>
+      </div>
+      <div id="modal-isi" class="modal-isi"></div>
+      <div id="modal-aksi" class="modal-aksi"></div>
+    </div>
+  </div>
+  <div id="memuat" class="memuat" hidden role="status" aria-label="Memuat"><div class="pemutar"></div></div>
+  <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+  <?!= include('Js'); ?>
+</body>
+</html>
