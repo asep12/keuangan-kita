@@ -11,7 +11,9 @@ satu Web App.
    (`ScriptApp.getService().getUrl()`) dengan kunci rahasia acak di parameter `?tg=<kunci>`.
 3. Menu yang sama: **kosongkan token lalu OK** untuk memeriksa & memperbaiki webhook (token & kunci lama dipakai),
    atau ketik `PUTUS` untuk melepas bot.
-4. **Keuangan › Status Bot Telegram** menampilkan alamat webhook (kunci disamarkan), pesan tertahan, dan galat terakhir.
+4. **Keuangan › Status Bot Telegram** menampilkan alamat webhook (kunci disamarkan), pesan tertahan, galat terakhir
+   dari Telegram, dan galat terakhir skrip (`TG_GALAT`, tanpa isi pesan). Galat tak terduga saat memproses pesan juga
+   dibalas ke chat pengirim agar bot tidak diam.
 
 Alamat Web App selalu diuji dulu dengan kiriman anonim (harus dijawab 302/200). `ScriptApp.getService().getUrl()`
 bisa mengembalikan deployment **@HEAD** (mode uji) yang menolak Telegram dengan 401 — bila begitu, menu meminta URL

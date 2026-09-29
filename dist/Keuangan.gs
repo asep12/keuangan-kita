@@ -1535,11 +1535,32 @@ function doPost(e) {
     if (!kunci || !e || !e.parameter || e.parameter.tg !== kunci || !e.postData) return ContentService.createTextOutput('');
     pastikanFileAsli_();
     if (props_().getProperty('TG_KUNCI') !== kunci) return ContentService.createTextOutput(''); // salinan file: kunci lama dibuang
-    prosesUpdate_(JSON.parse(e.postData.contents));
+    const update = JSON.parse(e.postData.contents);
+    try {
+      prosesUpdate_(update);
+    } catch (err) {
+      laporGalatBot_(update, err);
+    }
   } catch (err) {
-    console.error('Bot Telegram: ' + (err && err.kode ? err.kode : 'galat') + ' ' + (err && err.bisnis ? err.message : ''));
+    console.error('Bot Telegram: ' + (err && err.stack ? err.stack : err));
   }
   return ContentService.createTextOutput('ok');
+}
+
+/**
+ * Galat tak terduga saat memproses pesan: dicatat (tanpa isi pesan) agar terlihat di menu Status Bot Telegram,
+ * dan pengirim diberi tahu supaya bot tidak diam begitu saja.
+ */
+function laporGalatBot_(update, err) {
+  const teks = String(err && err.message ? err.message : err).slice(0, 200);
+  console.error('Bot Telegram: ' + (err && err.stack ? err.stack : teks));
+  props_().setProperty('TG_GALAT', Utilities.formatDate(new Date(), zonaWaktu_(), 'dd-MM-yyyy HH:mm') + ' — ' + teks);
+  const m = update && (update.message || (update.callback_query && update.callback_query.message));
+  if (!m || !m.chat) return;
+  try {
+    kirimPesan_(m.chat.id, err && err.bisnis ? err.message
+      : 'Maaf, bot gagal memproses pesan ini (' + teks + '). Coba lagi, atau catat lewat aplikasi.');
+  } catch (e) { /* Telegram tidak terjangkau */ }
 }
 
 /** Satu update Telegram (pesan atau tekan tombol). Dipakai webhook maupun polling. */
@@ -2125,7 +2146,8 @@ function statusBotTelegram() {
     'Webhook: ' + (url || '(belum terpasang)'),
     'Kunci webhook cocok: ' + (cocok ? 'ya' : 'TIDAK — jalankan Hubungkan Bot Telegram (kosongkan token) untuk memperbaiki'),
     'Pesan tertahan di Telegram: ' + (r.pending_update_count || 0),
-    'Galat terakhir: ' + galat,
+    'Galat terakhir (Telegram): ' + galat,
+    'Galat terakhir (skrip): ' + (props_().getProperty('TG_GALAT') || 'tidak ada'),
     '',
     /401|403|404/.test(galat) ? 'Galat ini berarti alamat Web App salah atau tidak terbuka untuk "Siapa saja". ' +
       'Jalankan Hubungkan Bot Telegram, kosongkan token, lalu tempel URL /exec dari Terapkan › Kelola deployment.'
@@ -2137,7 +2159,7 @@ function statusBotTelegram() {
 
 function hapusBotTelegram_() {
   const p = props_();
-  ['TG_TOKEN', 'TG_KUNCI', 'TG_BOT'].forEach(function (k) { p.deleteProperty(k); });
+  ['TG_TOKEN', 'TG_KUNCI', 'TG_BOT', 'TG_GALAT'].forEach(function (k) { p.deleteProperty(k); });
   Object.keys(p.getProperties()).forEach(function (k) {
     if (/^(TGC_|TGT_|TGA_)/.test(k)) p.deleteProperty(k);
   });

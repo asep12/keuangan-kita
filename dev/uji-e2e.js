@@ -470,7 +470,7 @@ uji('Keluar menghapus sesi', () => {
 
   uji('Bot: menu Status Bot Telegram menampilkan galat webhook dan menyamarkan kunci', () => {
     let teks = B.menu('statusBotTelegram');
-    pastikan(/Kunci webhook cocok: ya/.test(teks) && /Galat terakhir: tidak ada/.test(teks), teks);
+    pastikan(/Kunci webhook cocok: ya/.test(teks) && /Galat terakhir \(Telegram\): tidak ada/.test(teks), teks);
     pastikan(/tg=••••/.test(teks) && teks.indexOf(B.props.get('TG_KUNCI')) === -1, 'kunci tidak tampil');
     B.telegram.galatWebhook = 'Wrong response from the webhook: 401 Unauthorized';
     teks = B.menu('statusBotTelegram');
@@ -563,6 +563,20 @@ uji('Keluar menghapus sesi', () => {
     pastikan(/lewat aplikasi/.test(teksTerakhir()), teksTerakhir());
     pesan(111, '/entah');
     pastikan(/tidak dikenal/.test(teksTerakhir()), 'perintah asing');
+  });
+
+  uji('Bot: galat tak terduga dibalas ke chat & tercatat untuk menu Status, bukan diam', () => {
+    B.jalankan("globalThis.__asli = bacaKategori_; bacaKategori_ = function () { throw new Error('sheet rusak (uji)'); }");
+    try {
+      pesan(111, '25rb makan');
+    } finally {
+      B.jalankan('bacaKategori_ = globalThis.__asli');
+    }
+    pastikan(/gagal memproses/.test(teksTerakhir()) && /sheet rusak/.test(teksTerakhir()), teksTerakhir());
+    pastikan(/sheet rusak/.test(B.props.get('TG_GALAT')), 'TG_GALAT');
+    pastikan(/Galat terakhir \(skrip\):.*sheet rusak/.test(B.menu('statusBotTelegram')), 'status');
+    pesan(111, '25rb makan');
+    pastikan(/Uang keluar/.test(teksTerakhir()), 'pulih');
   });
 
   uji('Bot: /saldo & /bulanini', () => {
